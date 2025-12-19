@@ -354,12 +354,56 @@ function getUnrevealedNeighbors(row, col) {
     return neighbors.filter(n => !revealed[n.row][n.col] && !flagged[n.row][n.col]);
 }
 
+// Helper function to check if a cell is definitely safe based on all neighboring numbered cells
+function isCellSafe(row, col) {
+    // Get all neighbors of the candidate cell
+    const neighbors = getNeighbors(row, col);
+    
+    // Check each neighboring numbered cell
+    for (const neighbor of neighbors) {
+        if (revealed[neighbor.row][neighbor.col] && board[neighbor.row][neighbor.col] > 0) {
+            const cellNumber = board[neighbor.row][neighbor.col];
+            const flaggedNeighborsOfSource = countFlaggedNeighbors(neighbor.row, neighbor.col);
+            const unrevealedNeighborsOfSource = getUnrevealedNeighbors(neighbor.row, neighbor.col);
+            
+            // Check if our candidate cell is a neighbor of this numbered cell
+            const isCandidateNeighbor = unrevealedNeighborsOfSource.some(
+                n => n.row === row && n.col === col
+            );
+            
+            if (!isCandidateNeighbor) {
+                continue; // Our candidate is not a neighbor of this numbered cell
+            }
+            
+            // Rule 1: If numbered cell has exactly as many flags as its number,
+            // all remaining unrevealed neighbors (including our candidate) are safe
+            if (cellNumber === flaggedNeighborsOfSource) {
+                return {
+                    safe: true,
+                    reason: `Row ${neighbor.row + 1}, Col ${neighbor.col + 1} shows "${cellNumber}" with ${flaggedNeighborsOfSource} flags. All mines found → remaining cells safe.`,
+                    sourceRow: neighbor.row,
+                    sourceCol: neighbor.col
+                };
+            }
+            
+            // Rule 2: If numbered cell's number equals flags + unrevealed neighbors,
+            // and there's only 1 unrevealed neighbor (our candidate), then it must be a mine
+            if (cellNumber === flaggedNeighborsOfSource + unrevealedNeighborsOfSource.length && 
+                unrevealedNeighborsOfSource.length === 1) {
+                return { safe: false }; // This cell must be a mine
+            }
+        }
+    }
+    
+    return { safe: false }; // Cannot definitively prove it's safe
+}
+
 // AI Hint System - Rule-based analysis
 function getAIHint() {
     const safeCells = [];
-    let explanation = '';
+    const checkedCells = new Set(); // Track cells we've already considered
 
-    // Scan all revealed numbered cells
+    // First, identify candidate safe cells from numbered cells where all mines are flagged
     for (let i = 0; i < GRID_SIZE; i++) {
         for (let j = 0; j < GRID_SIZE; j++) {
             // Only analyze revealed numbered cells (not empty, not mines)
@@ -370,32 +414,34 @@ function getAIHint() {
             const cellNumber = board[i][j];
             const flaggedCount = countFlaggedNeighbors(i, j);
             const unrevealedNeighbors = getUnrevealedNeighbors(i, j);
-            const unrevealedCount = unrevealedNeighbors.length;
 
-            // Rule 1: Safe Cell Detection
-            // Logic: If cell shows number N and has N flagged neighbors, all remaining neighbors are safe
-            // Example: Cell shows "2" and 2 neighbors are flagged → remaining neighbors are safe
-            if (cellNumber === flaggedCount && unrevealedCount > 0) {
+            // Rule: If cell shows number N and has N flagged neighbors, remaining neighbors are safe
+            if (cellNumber === flaggedCount && unrevealedNeighbors.length > 0) {
                 for (const neighbor of unrevealedNeighbors) {
-                    // Only suggest if cell is truly unrevealed and not flagged
-                    if (!revealed[neighbor.row][neighbor.col] && !flagged[neighbor.row][neighbor.col]) {
+                    const cellKey = `${neighbor.row},${neighbor.col}`;
+                    
+                    // Skip if we've already checked this cell
+                    if (checkedCells.has(cellKey)) {
+                        continue;
+                    }
+                    checkedCells.add(cellKey);
+                    
+                    // Validate this cell is truly safe by checking ALL constraints
+                    const safetyCheck = isCellSafe(neighbor.row, neighbor.col);
+                    
+                    if (safetyCheck.safe) {
                         safeCells.push({
                             row: neighbor.row,
                             col: neighbor.col,
-                            reason: `Row ${i + 1}, Col ${j + 1} shows "${cellNumber}" with ${flaggedCount} flags. All mines found → remaining cells safe.`,
-                            sourceRow: i,
-                            sourceCol: j,
+                            reason: safetyCheck.reason,
+                            sourceRow: safetyCheck.sourceRow,
+                            sourceCol: safetyCheck.sourceCol,
                             category: 'Direct Deduction',
                             confidence: 'High'
                         });
                     }
                 }
             }
-
-            // Rule 2: If number equals unrevealed neighbors, all unrevealed are mines
-            // This helps identify which cells are NOT safe, but we focus on finding safe cells
-            // So we use this rule indirectly - if all neighbors except one are flagged/unrevealed and number matches, 
-            // the remaining one is safe (but this is covered by Rule 1)
         }
     }
 
@@ -479,11 +525,16 @@ restartBtn.addEventListener('click', () => {
     }
 });
 
-// AI Hint button handler
+// AI Hint button handler - toggles the panel open/closed
 aiHintBtn.addEventListener('click', () => {
-    if (!gameOver && !firstClick) {
-        displayAIHint();
-    } else if (firstClick) {
+    // Toggle: if panel is open, close it
+    if (aiPanel.classList.contains('open')) {
+        aiPanel.classList.remove('open');
+        return;
+    }
+    
+    // Panel is closed, so open it and show appropriate content
+    if (firstClick) {
         // Show message if game hasn't started
         aiPanelContent.innerHTML = '<p class="ai-placeholder">Start playing to get AI hints!</p>';
         aiPanel.classList.add('open');
@@ -491,6 +542,9 @@ aiHintBtn.addEventListener('click', () => {
         // Show message if game is over
         aiPanelContent.innerHTML = '<p class="ai-placeholder">Game is over. Start a new game to get AI hints!</p>';
         aiPanel.classList.add('open');
+    } else {
+        // Game is in progress - show hint or message to keep exploring
+        displayAIHint();
     }
 });
 
