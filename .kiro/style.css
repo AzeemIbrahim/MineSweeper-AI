@@ -9,21 +9,69 @@
 body {
     font-family: 'MS Sans Serif', 'Segoe UI', sans-serif;
     background: #696969;
+    background-image: 
+        repeating-linear-gradient(
+            0deg,
+            rgba(0, 0, 0, 0.03) 0px,
+            rgba(0, 0, 0, 0.03) 1px,
+            transparent 1px,
+            transparent 2px
+        );
     min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
     padding: 20px;
     position: relative;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
 }
 
 .container {
     background: #c0c0c0;
     border: 4px outset #ffffff;
     padding: 0;
-    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.3);
+    box-shadow: 
+        2px 2px 0px rgba(0, 0, 0, 0.3),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.5);
     display: flex;
     flex-direction: column;
+    position: relative;
+}
+
+/* CRT Scanlines Effect */
+.container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.03) 2px,
+        rgba(0, 0, 0, 0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 100;
+    opacity: 0.5;
+}
+
+/* Window Title Bar */
+.window-title-bar {
+    background: linear-gradient(to bottom, #000080 0%, #000080 100%);
+    color: #ffffff;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: bold;
+    border-bottom: 1px solid #808080;
+    display: flex;
+    align-items: center;
+    user-select: none;
+    cursor: default;
 }
 
 /* Menu Bar */
@@ -99,9 +147,15 @@ header {
 
 h1 {
     color: #000080;
-    font-size: 2.5em;
-    text-shadow: 2px 2px 0px #ffffff, 4px 4px 0px rgba(0, 0, 0, 0.2);
-    letter-spacing: 3px;
+    font-size: 2.2em;
+    text-shadow: 
+        1px 1px 0px #ffffff,
+        2px 2px 0px #ffffff,
+        3px 3px 0px rgba(0, 0, 0, 0.2);
+    letter-spacing: 4px;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-family: 'Courier New', 'MS Sans Serif', monospace;
 }
 
 .game-info {
@@ -114,6 +168,7 @@ h1 {
     border: 2px inset #808080;
     font-weight: bold;
     font-size: 1.1em;
+    box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .info-item {
@@ -131,9 +186,12 @@ h1 {
 #mine-count,
 #flag-count {
     font-family: 'Courier New', monospace;
-    font-size: 1.3em;
+    font-size: 1.4em;
     min-width: 50px;
     text-align: center;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-shadow: 0 0 2px rgba(255, 0, 0, 0.8);
 }
 
 #game-status {
@@ -164,11 +222,13 @@ h1 {
     justify-content: center;
     align-items: center;
     font-weight: bold;
-    font-size: 1.2em;
+    font-size: 1.25em;
     cursor: pointer;
     user-select: none;
     transition: all 0.05s;
     position: relative;
+    image-rendering: pixelated;
+    font-family: 'Courier New', 'MS Sans Serif', monospace;
 }
 
 .cell:hover:not(.revealed):not(.flagged):not(.mine) {
@@ -218,11 +278,13 @@ h1 {
 .cell.number-1 {
     color: #0000ff;
     font-weight: bold;
+    text-shadow: 0 0 1px rgba(0, 0, 255, 0.5);
 }
 
 .cell.number-2 {
     color: #008000;
     font-weight: bold;
+    text-shadow: 0 0 1px rgba(0, 128, 0, 0.5);
 }
 
 .cell.number-3 {
@@ -260,14 +322,15 @@ h1 {
     background: #c0c0c0;
     border: 3px outset #ffffff;
     padding: 12px 30px;
-    font-family: 'Courier New', monospace;
-    font-size: 1.1em;
+    font-family: 'MS Sans Serif', 'Courier New', monospace;
+    font-size: 1em;
     font-weight: bold;
     color: #000080;
     cursor: pointer;
     text-transform: uppercase;
-    letter-spacing: 2px;
+    letter-spacing: 1px;
     transition: all 0.1s;
+    box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .restart-btn:hover {
@@ -298,14 +361,15 @@ h1 {
     background: #c0c0c0;
     border: 3px outset #ffffff;
     padding: 12px 30px;
-    font-family: 'Courier New', monospace;
-    font-size: 1.1em;
+    font-family: 'MS Sans Serif', 'Courier New', monospace;
+    font-size: 1em;
     font-weight: bold;
     color: #008000;
     cursor: pointer;
     text-transform: uppercase;
-    letter-spacing: 2px;
+    letter-spacing: 1px;
     transition: all 0.1s;
+    box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .ai-hint-btn:hover:not(:disabled) {
