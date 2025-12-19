@@ -531,7 +531,7 @@ function serializeBoardState(hint) {
 async function enhanceExplanationWithGroq(hint) {
     // Fallback if API key is missing
     if (!GROQ_API_KEY || GROQ_API_KEY.trim() === '') {
-        console.log('Groq API key not found, using local explanation');
+        console.log('⚠ Groq API key not found, using local explanation');
         return hint.explanation;
     }
 
@@ -550,7 +550,9 @@ Task: Rewrite the original explanation in a more natural, conversational way whi
 
 Respond with ONLY the rewritten explanation text, nothing else.`;
 
-        console.log('Calling Groq API to enhance explanation...');
+        console.log('📡 Calling Groq API to enhance explanation...');
+        const startTime = Date.now();
+        
         const response = await fetch(GROQ_API_URL, {
             method: 'POST',
             headers: {
@@ -574,27 +576,35 @@ Respond with ONLY the rewritten explanation text, nothing else.`;
             })
         });
 
+        const duration = Date.now() - startTime;
+        console.log(`⏱ API call took ${duration}ms`);
+
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('Groq API error:', response.status, errorText);
+            console.error('❌ Groq API error:', response.status, errorText);
             throw new Error(`Groq API error: ${response.status} - ${errorText}`);
         }
 
         const data = await response.json();
-        console.log('Groq API response:', data);
+        console.log('📥 Groq API response received:', data);
         
-        if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
+        if (data.choices && data.choices.length > 0 && 
+            data.choices[0] && data.choices[0].message && 
+            data.choices[0].message.content) {
             const enhancedExplanation = data.choices[0].message.content.trim();
-            if (enhancedExplanation) {
-                console.log('Enhanced explanation received:', enhancedExplanation);
+            if (enhancedExplanation && enhancedExplanation.length > 0) {
+                console.log('✅ Enhanced explanation received:', enhancedExplanation);
                 return enhancedExplanation;
+            } else {
+                console.warn('⚠ Groq API returned empty content in response');
             }
+        } else {
+            console.warn('⚠ Groq API response structure invalid:', data);
         }
         
-        console.warn('Groq API returned empty or invalid response:', data);
         return hint.explanation;
     } catch (error) {
-        console.error('Groq API enhancement failed, using local explanation:', error);
+        console.error('❌ Groq API enhancement failed:', error.message || error);
         return hint.explanation;
     }
 }
@@ -651,19 +661,28 @@ async function displayAIHint() {
     try {
         console.log('Attempting to enhance explanation with Groq...');
         console.log('API Key present:', !!GROQ_API_KEY, 'Length:', GROQ_API_KEY ? GROQ_API_KEY.length : 0);
+        
         const enhanced = await enhanceExplanationWithGroq(hint);
         console.log('Enhancement result:', enhanced);
         console.log('Original explanation:', hint.explanation);
-        if (enhanced && enhanced.trim()) {
+        
+        // Use enhanced explanation if we got a valid response (different from original)
+        if (enhanced && enhanced.trim() && enhanced.trim() !== hint.explanation.trim()) {
             finalExplanation = enhanced.trim();
-            console.log('Using enhanced explanation:', finalExplanation);
+            console.log('✓ Using enhanced explanation:', finalExplanation);
+        } else if (enhanced && enhanced.trim()) {
+            console.log('⚠ Enhanced explanation same as original, using original');
+            finalExplanation = hint.explanation;
         } else {
-            console.log('Using original explanation');
+            console.log('⚠ No valid enhancement received, using original explanation');
+            finalExplanation = hint.explanation;
         }
     } catch (error) {
-        console.error('Error enhancing explanation:', error);
+        console.error('❌ Error enhancing explanation:', error);
         finalExplanation = hint.explanation;
     }
+    
+    console.log('Final explanation to display:', finalExplanation);
 
     // Display final explanation (either enhanced or original)
     const escapeHtml = (text) => {
@@ -673,8 +692,16 @@ async function displayAIHint() {
         return div.innerHTML;
     };
 
+    // Ensure we have a valid explanation
+    if (!finalExplanation || !finalExplanation.trim()) {
+        finalExplanation = hint.explanation || 'No explanation available.';
+        console.warn('⚠ No valid explanation found, using fallback');
+    }
+
     const categoryClass = hint.category.toLowerCase().replace(/\s*\/\s*/g, '-').replace(/\s+/g, '-');
     const confidenceClass = hint.confidence.toLowerCase();
+
+    console.log('🎨 Updating AI panel with explanation:', finalExplanation);
 
     aiPanelContent.innerHTML = `
         <div class="ai-suggestion">
