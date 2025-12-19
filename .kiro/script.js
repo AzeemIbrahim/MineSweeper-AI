@@ -1,10 +1,23 @@
 // Minesweeper Game Logic
 
-// Game configuration
+// ============================================================================
+// Game Configuration
+// ============================================================================
 const GRID_SIZE = 8;
 const MINE_COUNT = 10;
 
-// Game state
+// ============================================================================
+// Groq LLM API Configuration
+// ============================================================================
+// Set API key via window.GROQ_API_KEY before loading this script
+// Example: window.GROQ_API_KEY = 'your-api-key-here';
+// If not set, the game will fall back to local explanations
+const GROQ_API_KEY = window.GROQ_API_KEY || '';
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+
+// ============================================================================
+// Game State
+// ============================================================================
 let board = [];
 let revealed = [];
 let flagged = [];
@@ -468,8 +481,132 @@ function getAIHint() {
     return null;
 }
 
-// Display AI hint
-function displayAIHint() {
+// ============================================================================
+// LLM Explanation Layer (Groq Integration)
+// ============================================================================
+// This layer enhances explanations but NEVER decides moves.
+// The rule-based AI (getAIHint) is the only decision maker.
+
+/**
+ * Serialize board state for LLM
+ * @param {Object} hint - The AI hint object from getAIHint()
+ * @returns {string} Serialized board state
+ */
+function serializeBoardState(hint) {
+    let boardState = `Minesweeper Game State (${GRID_SIZE}x${GRID_SIZE}):\n\n`;
+    boardState += `Suggested Safe Cell: Row ${hint.row + 1}, Column ${hint.col + 1}\n`;
+    boardState += `Reasoning Category: ${hint.category}\n`;
+    boardState += `Confidence: ${hint.confidence}\n`;
+    boardState += `Original Explanation: ${hint.explanation}\n\n`;
+    boardState += `Board Layout:\n`;
+    
+    for (let i = 0; i < GRID_SIZE; i++) {
+        let row = '';
+        for (let j = 0; j < GRID_SIZE; j++) {
+            if (revealed[i][j]) {
+                if (board[i][j] === -1) {
+                    row += 'M ';
+                } else if (board[i][j] === 0) {
+                    row += '. ';
+                } else {
+                    row += board[i][j] + ' ';
+                }
+            } else if (flagged[i][j]) {
+                row += 'F ';
+            } else {
+                row += '? ';
+            }
+        }
+        boardState += row.trim() + '\n';
+    }
+    
+    return boardState;
+}
+
+/**
+ * Enhance explanation using Groq LLM
+ * @param {Object} hint - The AI hint object from getAIHint()
+ * @returns {Promise<string>} Enhanced explanation or original if API fails
+ */
+async function enhanceExplanationWithGroq(hint) {
+    // Fallback if API key is missing
+    if (!GROQ_API_KEY || GROQ_API_KEY.trim() === '') {
+        console.log('Groq API key not found, using local explanation');
+        return hint.explanation;
+    }
+
+    try {
+        const boardState = serializeBoardState(hint);
+        
+        const prompt = `You are explaining a Minesweeper game move to a player. The AI has already determined a safe cell to click based on logical rules.
+
+${boardState}
+
+Task: Rewrite the original explanation in a more natural, conversational way while:
+1. Keeping the same suggested cell (Row ${hint.row + 1}, Column ${hint.col + 1})
+2. Maintaining the reasoning category (${hint.category})
+3. Making it sound more friendly and helpful
+4. Being concise (2-3 sentences max)
+
+Respond with ONLY the rewritten explanation text, nothing else.`;
+
+        console.log('Calling Groq API to enhance explanation...');
+        const response = await fetch(GROQ_API_URL, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${GROQ_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'llama-3.1-8b-instant',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You are a helpful assistant that explains Minesweeper moves in a friendly, clear way. You only rewrite explanations - you never choose which cell to click.'
+                    },
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                temperature: 0.7,
+                max_tokens: 150
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Groq API error:', response.status, errorText);
+            throw new Error(`Groq API error: ${response.status} - ${errorText}`);
+        }
+
+        const data = await response.json();
+        console.log('Groq API response:', data);
+        
+        if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
+            const enhancedExplanation = data.choices[0].message.content.trim();
+            if (enhancedExplanation) {
+                console.log('Enhanced explanation received:', enhancedExplanation);
+                return enhancedExplanation;
+            }
+        }
+        
+        console.warn('Groq API returned empty or invalid response:', data);
+        return hint.explanation;
+    } catch (error) {
+        console.error('Groq API enhancement failed, using local explanation:', error);
+        return hint.explanation;
+    }
+}
+
+// ============================================================================
+// AI Hint Display Logic
+// ============================================================================
+
+/**
+ * Display AI hint with optional Groq enhancement
+ */
+async function displayAIHint() {
     // Don't show hint if game hasn't started, is over, or already won
     if (firstClick || gameOver) {
         aiPanelContent.innerHTML = '<p class="ai-placeholder">Start playing to get AI hints!</p>';
@@ -487,11 +624,10 @@ function displayAIHint() {
         return;
     }
 
-    // REQUIREMENT 1: Store suggested cell (row, column) for visual highlighting
+    // Store suggested cell for visual highlighting
     aiSuggestedCell = { row: hint.row, col: hint.col };
 
-    // REQUIREMENT 4: Display explanation in side panel
-    // REQUIREMENT 2: Show row, column, explanation string, category, and confidence
+    // Show loading state while enhancing explanation
     aiPanelContent.innerHTML = `
         <div class="ai-suggestion">
             <div class="ai-suggestion-title">Suggested Safe Cell:</div>
@@ -501,18 +637,59 @@ function displayAIHint() {
                 <span class="ai-confidence ai-confidence-${hint.confidence.toLowerCase()}">Confidence: ${hint.confidence}</span>
             </div>
             <div class="ai-explanation-text">
-                ${hint.explanation}
+                <em>Enhancing explanation...</em>
+            </div>
+        </div>
+    `;
+    
+    // Open panel and render board immediately
+    aiPanel.classList.add('open');
+    renderBoard();
+
+    // Try to enhance explanation with Groq (non-blocking, with fallback)
+    let finalExplanation = hint.explanation;
+    try {
+        console.log('Attempting to enhance explanation with Groq...');
+        console.log('API Key present:', !!GROQ_API_KEY);
+        const enhanced = await enhanceExplanationWithGroq(hint);
+        console.log('Enhancement result:', enhanced);
+        if (enhanced && enhanced.trim() && enhanced !== hint.explanation) {
+            finalExplanation = enhanced.trim();
+            console.log('Using enhanced explanation:', finalExplanation);
+        } else {
+            console.log('Using original explanation');
+        }
+    } catch (error) {
+        console.error('Error enhancing explanation:', error);
+        finalExplanation = hint.explanation;
+    }
+
+    // Display final explanation (either enhanced or original)
+    const escapeHtml = (text) => {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    };
+
+    const categoryClass = hint.category.toLowerCase().replace(/\s*\/\s*/g, '-').replace(/\s+/g, '-');
+    const confidenceClass = hint.confidence.toLowerCase();
+
+    aiPanelContent.innerHTML = `
+        <div class="ai-suggestion">
+            <div class="ai-suggestion-title">Suggested Safe Cell:</div>
+            <div class="ai-suggestion-cell">Row ${hint.row + 1}, Column ${hint.col + 1}</div>
+            <div class="ai-reasoning-info">
+                <span class="ai-category ai-category-${escapeHtml(categoryClass)}">${escapeHtml(hint.category)}</span>
+                <span class="ai-confidence ai-confidence-${escapeHtml(confidenceClass)}">Confidence: ${escapeHtml(hint.confidence)}</span>
+            </div>
+            <div class="ai-explanation-text">
+                ${escapeHtml(finalExplanation)}
             </div>
         </div>
     `;
 
-    // REQUIREMENT 3: Re-render board to highlight the suggested cell visually
-    renderBoard();
-
-    // Open the side panel after rendering to ensure cell is highlighted
-    aiPanel.classList.add('open');
-    
-    // Ensure the highlight is visible by scrolling if needed (small delay to ensure render completes)
+    // Ensure the highlight is visible by scrolling if needed
     setTimeout(() => {
         const suggestedElement = document.querySelector(`.cell.ai-suggested`);
         if (suggestedElement) {
