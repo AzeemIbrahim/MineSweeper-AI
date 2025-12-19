@@ -650,10 +650,11 @@ async function displayAIHint() {
     let finalExplanation = hint.explanation;
     try {
         console.log('Attempting to enhance explanation with Groq...');
-        console.log('API Key present:', !!GROQ_API_KEY);
+        console.log('API Key present:', !!GROQ_API_KEY, 'Length:', GROQ_API_KEY ? GROQ_API_KEY.length : 0);
         const enhanced = await enhanceExplanationWithGroq(hint);
         console.log('Enhancement result:', enhanced);
-        if (enhanced && enhanced.trim() && enhanced !== hint.explanation) {
+        console.log('Original explanation:', hint.explanation);
+        if (enhanced && enhanced.trim()) {
             finalExplanation = enhanced.trim();
             console.log('Using enhanced explanation:', finalExplanation);
         } else {
