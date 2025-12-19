@@ -8,6 +8,22 @@
 </head>
 <body>
     <div class="container">
+        <div class="menu-bar">
+            <div class="menu-item">
+                <span>Game</span>
+                <div class="menu-dropdown">
+                    <div class="menu-dropdown-item" id="new-game-menu">New Game</div>
+                    <div class="menu-dropdown-item" id="exit-menu">Exit</div>
+                </div>
+            </div>
+            <div class="menu-item">
+                <span>Help</span>
+                <div class="menu-dropdown" id="help-menu-dropdown">
+                    <div class="menu-dropdown-item">How to Play</div>
+                </div>
+            </div>
+        </div>
+        
         <header>
             <h1>Minesweeper</h1>
         </header>
@@ -44,6 +60,42 @@
             </div>
             <div class="ai-panel-content" id="ai-panel-content">
                 <p class="ai-placeholder">Click "Ask AI for Hint" to get a suggestion!</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Window -->
+    <div class="help-window" id="help-window">
+        <div class="window-header">
+            <div class="window-title">How to Play</div>
+            <button class="window-close" id="help-window-close">&times;</button>
+        </div>
+        <div class="window-content">
+            <div class="help-content">
+                <h3>Objective</h3>
+                <p>Reveal all cells without clicking on any mines!</p>
+                
+                <h3>Controls</h3>
+                <ul>
+                    <li><strong>Left-click:</strong> Reveal a cell</li>
+                    <li><strong>Right-click:</strong> Place/remove a flag on a cell</li>
+                </ul>
+                
+                <h3>Rules</h3>
+                <ul>
+                    <li>Numbers show how many mines are adjacent to that cell</li>
+                    <li>Use the numbers to deduce where mines are located</li>
+                    <li>Flag cells you suspect contain mines</li>
+                    <li>Reveal all non-mine cells to win!</li>
+                </ul>
+                
+                <h3>AI Hint System</h3>
+                <ul>
+                    <li>Click "Ask AI for Hint" to get suggestions for safe cells</li>
+                    <li>The AI analyzes the board and suggests safe moves</li>
+                    <li>Each hint includes reasoning and confidence level</li>
+                    <li>Suggested cells are highlighted on the board</li>
+                </ul>
             </div>
         </div>
     </div>

@@ -22,6 +22,10 @@ const aiHintBtn = document.getElementById('ai-hint-btn');
 const aiPanel = document.getElementById('ai-panel');
 const aiPanelContent = document.getElementById('ai-panel-content');
 const aiPanelClose = document.getElementById('ai-panel-close');
+const helpMenuDropdown = document.getElementById('help-menu-dropdown');
+const helpWindow = document.getElementById('help-window');
+const helpWindowClose = document.getElementById('help-window-close');
+const newGameMenu = document.getElementById('new-game-menu');
 
 // AI state
 let aiSuggestedCell = null;
@@ -551,6 +555,44 @@ aiHintBtn.addEventListener('click', () => {
 // Close AI panel handler
 aiPanelClose.addEventListener('click', () => {
     aiPanel.classList.remove('open');
+});
+
+// Menu handlers
+newGameMenu.addEventListener('click', (e) => {
+    e.stopPropagation();
+    // Always allow new game, even if restart button is disabled
+    initGame();
+});
+
+// Exit menu item handler
+const exitMenu = document.getElementById('exit-menu');
+if (exitMenu) {
+    exitMenu.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Close the window or show a confirmation
+        if (confirm('Are you sure you want to exit?')) {
+            window.close();
+            // If window.close() doesn't work (some browsers block it), we can at least try
+            // For web browsers, we might want to just show a message instead
+            if (!window.closed) {
+                alert('Please close the browser tab/window manually.');
+            }
+        }
+    });
+}
+
+// Help menu - "How to Play" item
+const howToPlayMenuItem = helpMenuDropdown.querySelector('.menu-dropdown-item');
+if (howToPlayMenuItem) {
+    howToPlayMenuItem.addEventListener('click', (e) => {
+        e.stopPropagation();
+        helpWindow.classList.add('show');
+    });
+}
+
+// Close help window handler
+helpWindowClose.addEventListener('click', () => {
+    helpWindow.classList.remove('show');
 });
 
 // Initialize game on page load
